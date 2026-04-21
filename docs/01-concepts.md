@@ -68,14 +68,10 @@ Use this as a checklist when evaluating any product that calls itself an "agent.
 
 ## The autonomy spectrum
 
-```
-Assistive ────── Supervised ────── Autonomous
-(copilot)        (approval gates)   (runs alone)
 
-GitHub Copilot → Claude Code    → Devin, bg agents
-you accept       approves each    runs for hours
-each suggestion  tool call        reports back
-```
+<img width="2212" height="1474" alt="CleanShot 2026-04-21 at 22 40 46@2x" src="https://github.com/user-attachments/assets/6a0ee6db-7089-4b14-924e-2bc0829a5ba0" />
+
+
 
 **Rule:** more blast radius → push further left on this line.
 
