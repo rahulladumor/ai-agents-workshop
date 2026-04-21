@@ -1,0 +1,14 @@
+{
+  "name": "agent-workshop-demo",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Minimum-viable AI agent for the 2-hour workshop",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "openai": "^4.65.0"
+  }
+}
