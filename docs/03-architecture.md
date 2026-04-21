@@ -37,9 +37,9 @@ The loop. Manages the message array, calls the LLM, parses tool calls, validates
 **Why this matters:** most people think the LLM is the agent. It's not. The orchestrator is the agent. The LLM is a dumb, expensive, fallible oracle the orchestrator consults.
 
 ### LLM adapter
-Abstraction over the model provider. Handles retries, rate limits, model fallback (mini for routing, full for reasoning), token counting, cost tracking.
+Abstraction over the model provider. Handles retries, rate limits, model fallback (Haiku for routing, Sonnet/Opus for reasoning), token counting, cost tracking.
 
-**Why:** the day OpenAI has an outage — and they will — you swap in Claude without touching your orchestrator.
+**Why:** the day Anthropic (or OpenAI, or any provider) has an outage — and they will — you swap in an alternative without touching your orchestrator. The demo agent uses `claude-haiku-4-5`, which is fast and cheap; for production reasoning you'd typically step up to `claude-sonnet-4-6` or `claude-opus-4-7`.
 
 ### Tool registry
 A registry of functions, each with a schema, a handler, a timeout, a permission check, an audit log.
@@ -92,7 +92,7 @@ sequenceDiagram
     Orc->>Redis: load session memory
     Redis-->>Orc: []  (new session)
     Orc->>LLM: messages + tools
-    LLM-->>Orc: tool_call(getStudentCount, {dept: "CSE"})
+    LLM-->>Orc: stop_reason=tool_use<br/>tool_use(getStudentCount, {dept: "CSE"})
     Orc->>Orc: validate schema + permissions
     Orc->>DB: SELECT count FROM students WHERE dept='CSE'
     DB-->>Orc: 420

@@ -26,12 +26,13 @@ The system receives the raw text. The LLM is **stateless** — it has no memory 
 
 ### Step 2 · Context building
 
-The orchestrator assembles a message array:
+The orchestrator assembles a system prompt, a message array, and a tool list:
 
 ```js
+system = "You are a campus assistant..."
+
 messages = [
-  { role: "system", content: "You are a campus assistant..." },
-  { role: "user",   content: "How many students in CSE?" }
+  { role: "user", content: "How many students in CSE?" }
 ]
 
 tools = [ getStudentCount, listCourses, ... ]
@@ -41,20 +42,27 @@ tools = [ getStudentCount, listCourses, ... ]
 **Tools** are its hands.
 Together, they define what the agent can and cannot do.
 
+> Note: the Anthropic Messages API takes the system prompt as a separate top-level field, not as a message in the array. (OpenAI's Chat Completions API puts it inside `messages[]` as `{role: "system", ...}`. Different shape, same idea.)
+
 ### Step 3 · First LLM call — the decision
 
 The model returns one of two things:
 - A tool call (structured JSON)
 - A text answer
 
-For this question, it returns:
+For this question, it returns a response with `stop_reason: "tool_use"` and a content block:
 
 ```json
 {
-  "tool_calls": [{
-    "name": "getStudentCount",
-    "arguments": "{\"department\": \"CSE\"}"
-  }]
+  "stop_reason": "tool_use",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_abc123",
+      "name": "getStudentCount",
+      "input": { "department": "CSE" }
+    }
+  ]
 }
 ```
 
@@ -73,21 +81,28 @@ Every tool argument is **untrusted input**. Treat it like a form submission from
 
 ### Step 5 · Observation
 
-The tool result is appended to the message history:
+The tool result is appended to the message history as a `user` message containing a `tool_result` block:
 
 ```js
 messages.push({
-  role: "tool",
-  tool_call_id: "call_abc123",
-  content: JSON.stringify({
-    department: "CSE",
-    count: 420,
-    semester: "Spring 2026"
-  })
+  role: "user",
+  content: [
+    {
+      type: "tool_result",
+      tool_use_id: "toolu_abc123",
+      content: JSON.stringify({
+        department: "CSE",
+        count: 420,
+        semester: "Spring 2026"
+      })
+    }
+  ]
 })
 ```
 
-Now the conversation contains: system + user + assistant(tool_call) + tool(result).
+Now the conversation contains: user(question) + assistant(tool_use) + user(tool_result).
+
+> Why is the tool result under `role: "user"`? Anthropic treats tool results as information flowing *into* the model, same as a user message. OpenAI uses a separate `role: "tool"`. Different convention, same semantics.
 
 ### Step 6 · Second LLM call — final answer or next tool
 
@@ -107,34 +122,33 @@ Here's the core of the loop from [`../agent.js`](../agent.js):
 
 ```js
 async function runAgent(userMessage) {
-  const messages = [
-    { role: 'system', content: '...' },
-    { role: 'user', content: userMessage }
-  ];
+  const system = '...';
+  const messages = [{ role: 'user', content: userMessage }];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const resp = await openai.chat.completions.create({
+    const resp = await anthropic.messages.create({
       model: MODEL,
-      messages,
-      tools: toolSchemas
+      max_tokens: 1024,
+      system,
+      tools,
+      messages
     });
 
-    const msg = resp.choices[0].message;
-    messages.push(msg);
+    messages.push({ role: 'assistant', content: resp.content });
 
-    if (msg.tool_calls?.length) {
-      for (const call of msg.tool_calls) {
-        const result = executeToolSafely(call);
-        messages.push({
-          role: 'tool',
-          tool_call_id: call.id,
-          content: JSON.stringify(result)
-        });
-      }
+    if (resp.stop_reason === 'tool_use') {
+      const toolUseBlocks = resp.content.filter(b => b.type === 'tool_use');
+      const results = toolUseBlocks.map(b => ({
+        type: 'tool_result',
+        tool_use_id: b.id,
+        content: JSON.stringify(executeToolSafely(b))
+      }));
+      messages.push({ role: 'user', content: results });
       continue;
     }
 
-    return { answer: msg.content, iterations: i + 1 };
+    const text = resp.content.find(b => b.type === 'text');
+    return { answer: text?.text ?? '', iterations: i + 1 };
   }
 
   return { answer: 'Iteration limit reached.', iterations: MAX_ITERATIONS };

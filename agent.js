@@ -1,60 +1,55 @@
 // agent.js  --  minimum-viable AI agent for the workshop demo
+//                uses the Anthropic SDK + Claude Haiku 4.5
 import express from 'express';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 const app = express();
 app.use(express.json());
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MODEL = 'gpt-4o-mini';
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = 'claude-haiku-4-5';
 const MAX_ITERATIONS = 5;
 
 // ---------------------------------------------------------------
-// Tools — this is what the LLM sees. The description IS a prompt.
+// Tools -- this is what the LLM sees. The description IS a prompt.
 // ---------------------------------------------------------------
-const toolSchemas = [
+const tools = [
   {
-    type: 'function',
-    function: {
-      name: 'getStudentCount',
-      description:
-        'Returns the number of students enrolled in a department for the current semester. ' +
-        'Use this whenever the user asks for student counts. Never guess.',
-      parameters: {
-        type: 'object',
-        properties: {
-          department: {
-            type: 'string',
-            description: 'Department code. Supported: CSE, ME, CE, EE.'
-          }
-        },
-        required: ['department']
-      }
+    name: 'getStudentCount',
+    description:
+      'Returns the number of students enrolled in a department for the current semester. ' +
+      'Use this whenever the user asks for student counts. Never guess.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        department: {
+          type: 'string',
+          description: 'Department code. Supported: CSE, ME, CE, EE.'
+        }
+      },
+      required: ['department']
     }
   },
   {
-    type: 'function',
-    function: {
-      name: 'listCourses',
-      description:
-        'Returns the list of courses offered by a department this semester. ' +
-        'Use this when the user asks about courses or subjects. Never guess.',
-      parameters: {
-        type: 'object',
-        properties: {
-          department: {
-            type: 'string',
-            description: 'Department code. Supported: CSE, ME, CE, EE.'
-          }
-        },
-        required: ['department']
-      }
+    name: 'listCourses',
+    description:
+      'Returns the list of courses offered by a department this semester. ' +
+      'Use this when the user asks about courses or subjects. Never guess.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        department: {
+          type: 'string',
+          description: 'Department code. Supported: CSE, ME, CE, EE.'
+        }
+      },
+      required: ['department']
     }
   }
 ];
 
 // ---------------------------------------------------------------
-// Tool handlers — real code, returns structured data or structured errors.
+// Tool handlers -- real code, returns structured data or structured errors.
 // ---------------------------------------------------------------
 function getStudentCount({ department }) {
   const data = { CSE: 420, ME: 310, CE: 180, EE: 265 };
@@ -84,57 +79,60 @@ function listCourses({ department }) {
 const toolHandlers = { getStudentCount, listCourses };
 
 // ---------------------------------------------------------------
-// The Agent Loop — this IS the agent. Everything else is plumbing.
+// The agent loop -- this IS the agent. Everything else is plumbing.
 // ---------------------------------------------------------------
 async function runAgent(userMessage) {
-  const messages = [
-    {
-      role: 'system',
-      content:
-        'You are a campus assistant for engineering students. ' +
-        'When the user asks about student counts or courses, you MUST call the matching tool. ' +
-        'Never invent numbers or facts. If a tool returns an error, explain it plainly.'
-    },
-    { role: 'user', content: userMessage }
-  ];
+  const system =
+    'You are a campus assistant for engineering students. ' +
+    'When the user asks about student counts or courses, you MUST call the matching tool. ' +
+    'Never invent numbers or facts. If a tool returns an error, explain it plainly.';
+
+  const messages = [{ role: 'user', content: userMessage }];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const resp = await openai.chat.completions.create({
+    const resp = await anthropic.messages.create({
       model: MODEL,
-      messages,
-      tools: toolSchemas
+      max_tokens: 1024,
+      system,
+      tools,
+      messages
     });
 
-    const msg = resp.choices[0].message;
-    messages.push(msg);
+    // Append assistant turn (preserve the full content block list)
+    messages.push({ role: 'assistant', content: resp.content });
 
-    if (msg.tool_calls?.length) {
+    if (resp.stop_reason === 'tool_use') {
+      const toolUseBlocks = resp.content.filter(b => b.type === 'tool_use');
       console.log(
-        `[iter ${i + 1}] → tools: ` +
-        msg.tool_calls.map(c => c.function.name).join(', ')
+        `[iter ${i + 1}] -> tools: ` +
+        toolUseBlocks.map(b => b.name).join(', ')
       );
-      for (const call of msg.tool_calls) {
-        const handler = toolHandlers[call.function.name];
+
+      const toolResults = toolUseBlocks.map(block => {
+        const handler = toolHandlers[block.name];
         let result;
         try {
-          const args = JSON.parse(call.function.arguments);
           result = handler
-            ? handler(args)
-            : { error: `Unknown tool: ${call.function.name}` };
+            ? handler(block.input)
+            : { error: `Unknown tool: ${block.name}` };
         } catch (err) {
           result = { error: `Tool failed: ${err.message}` };
         }
-        messages.push({
-          role: 'tool',
-          tool_call_id: call.id,
+        return {
+          type: 'tool_result',
+          tool_use_id: block.id,
           content: JSON.stringify(result)
-        });
-      }
+        };
+      });
+
+      messages.push({ role: 'user', content: toolResults });
       continue;
     }
 
-    console.log(`[iter ${i + 1}] → final answer`);
-    return { answer: msg.content, iterations: i + 1 };
+    // stop_reason === 'end_turn' -- final answer, return it
+    console.log(`[iter ${i + 1}] -> final answer`);
+    const textBlock = resp.content.find(b => b.type === 'text');
+    return { answer: textBlock?.text ?? '', iterations: i + 1 };
   }
 
   return {
@@ -144,7 +142,7 @@ async function runAgent(userMessage) {
 }
 
 // ---------------------------------------------------------------
-// HTTP endpoint — thin wrapper around runAgent()
+// HTTP endpoint -- thin wrapper around runAgent()
 // ---------------------------------------------------------------
 app.post('/ask', async (req, res) => {
   const { question } = req.body;

@@ -25,8 +25,8 @@ Every one of these has happened on a real system. They are predictable, not exce
 | Hallucination | strict system prompt, output schema, post-response validation |
 | Tool misuse | JSON schema validation on args, permission checks, dry-run mode |
 | Cost explosion | `MAX_ITERATIONS`, per-user daily cost cap, smaller routing models |
-| Latency | parallel tool calls, streaming, smaller models, caching |
-| Non-determinism | pin model version (`gpt-4o-mini-2024-07-18`, not `gpt-4o-mini`), eval set |
+| Latency | parallel tool calls, streaming, smaller models, prompt caching |
+| Non-determinism | pin a specific model alias across versions, eval set |
 | Provider outage | multi-provider fallback, health checks, degraded-mode responses |
 | Data leak | PII scrubbing on input, output filtering, audit log retention policy |
 

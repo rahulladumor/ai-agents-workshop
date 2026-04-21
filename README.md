@@ -45,7 +45,7 @@ cd ai-agents-workshop
 # 2. Install + add your API key
 npm install
 cp .env.example .env
-# Edit .env and paste your OpenAI API key
+# Edit .env and paste your Anthropic API key
 
 # 3. Run
 node --env-file=.env agent.js
@@ -60,14 +60,14 @@ curl -sX POST http://localhost:3000/ask \
   -d '{"question":"How many students in CSE this semester?"}'
 ```
 
-You should see two iterations logged (`[iter 1] → tools: getStudentCount`, `[iter 2] → final answer`) and a real answer come back. If you do — you've just run an agent.
+You should see two iterations logged (`[iter 1] -> tools: getStudentCount`, `[iter 2] -> final answer`) and a real answer come back. If you do — you've just run an agent.
 
 ---
 
-## Don't have an OpenAI key?
+## Don't have an Anthropic API key?
 
 Two options:
-- **Get one** — https://platform.openai.com/api-keys · you need ~$1 of credit for the whole workshop
+- **Get one** — https://console.anthropic.com/ · you need ~$1 of credit for the whole workshop (Haiku 4.5 is the cheap tier)
 - **Follow along in read-only mode** — read [`agent.js`](./agent.js) and the [docs](./docs/), do the [exercises](./exercises/). You won't miss the core learning.
 
 ---
@@ -128,9 +128,9 @@ These all get called "agents" but aren't, under the definition above:
 ## What's in the demo agent
 
 - **Endpoint:** `POST /ask`
-- **Model:** `gpt-4o-mini` (cheap, fast, good enough for routing)
+- **Model:** `claude-haiku-4-5` (cheap, fast, excellent at tool use)
 - **Tools:** `getStudentCount`, `listCourses` — return hardcoded campus data
-- **Framework:** none. Just Express + the OpenAI SDK.
+- **Framework:** none. Just Express + the Anthropic SDK.
 - **Memory:** session-only (no persistent memory across requests)
 - **Max iterations:** 5 (the fuse)
 
