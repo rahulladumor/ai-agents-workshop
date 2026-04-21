@@ -84,7 +84,14 @@ node --env-file=.env agent-research.js "What's happening with open-source AI age
 node --env-file=.env agent-research.js "Latest research on retrieval-augmented generation, save to rag.md"
 ```
 
-> **Note:** `agent-research.js` uses Anthropic's hosted web_search tool, which costs ~$0.01 per search (on top of model token costs). Haiku is not used here — Sonnet 4.6 reasons better across multi-step research. Expect 3–10¢ per real research query.
+> **Note on cost:** `agent-research.js` uses Anthropic's hosted web_search tool, which costs ~$0.01 per search (on top of model token costs). Expect 3–10¢ per real research query.
+>
+> **Note on speed:** the first iteration with `web_search` genuinely takes **8–15 seconds on Sonnet** (or 4–8s with `--fast` / Haiku). That's real wall-clock: Anthropic's server runs a live web query, parses results, and filters them through a secondary model call before returning to your agent. It's not a bug — it's what real agent work costs. The terminal shows a spinner with elapsed seconds so you can see it's running.
+>
+> Pass `--fast` to use Haiku 4.5 instead of Sonnet 4.6:
+> ```bash
+> node --env-file=.env agent-research.js --fast "What is Claude Haiku 4.5?"
+> ```
 
 ---
 

@@ -29,7 +29,11 @@ const RESEARCH_DIR = path.join(__dirname, 'research');
 await fs.mkdir(RESEARCH_DIR, { recursive: true });
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = 'claude-sonnet-4-6';   // sonnet for multi-step research decisions
+// Allow --fast flag to downgrade to Haiku 4.5 for snappier demos.
+// Sonnet is the default: it reasons better across multi-step research,
+// but each iteration takes longer. Haiku responds in ~1-2s per iter.
+const FAST = process.argv.includes('--fast');
+const MODEL = FAST ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
 const MAX_ITERATIONS = 20;           // web research can take many tool calls
 
 // ---------------------------------------------------------------------------
@@ -182,24 +186,51 @@ If the user asks about existing notes, use listNotes() and readNote() before sea
   let totalOut = 0;
 
   console.log('\n' + c.bold('━━━ Research Agent ━━━'));
-  console.log(c.dim('model:  ') + MODEL);
-  console.log(c.dim('goal:   ') + userMessage + '\n');
+  console.log(c.dim('model:  ') + MODEL + (FAST ? c.dim('  (--fast)') : ''));
+  console.log(c.dim('goal:   ') + userMessage);
+  console.log(c.dim('note:   iter 1 with web_search runs a real web query → expect 8-15s on sonnet, 4-8s on haiku\n'));
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    process.stdout.write(c.dim(`[iter ${i + 1}] `) + c.orange('thinking…'));
+    // Live spinner showing elapsed seconds so the user sees it's working.
+    // Sonnet + server-side web_search/web_fetch can take 8–15s on iter 1.
+    const iterStart = Date.now();
+    const spinChars = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+    let spinIdx = 0;
+    const spinnerTimer = setInterval(() => {
+      const elapsed = ((Date.now() - iterStart) / 1000).toFixed(1);
+      process.stdout.write(
+        '\r\x1b[K' +
+        c.dim(`[iter ${i + 1}] `) +
+        c.orange(spinChars[spinIdx++ % spinChars.length]) + ' ' +
+        c.orange('thinking…') + ' ' + c.dim(`${elapsed}s`)
+      );
+    }, 100);
 
-    const resp = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system,
-      tools,
-      messages
-    });
+    let resp;
+    try {
+      resp = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 4096,
+        system,
+        tools,
+        messages
+      });
+    } finally {
+      clearInterval(spinnerTimer);
+      process.stdout.write('\r\x1b[K');  // clear the spinner line
+    }
 
-    process.stdout.write('\r\x1b[K');  // clear "thinking…" line
-
+    const iterMs = Date.now() - iterStart;
     totalIn  += resp.usage?.input_tokens  ?? 0;
     totalOut += resp.usage?.output_tokens ?? 0;
+
+    // Log per-iteration timing + token usage so students see where time goes.
+    console.log(
+      c.dim(`[iter ${i + 1}] `) +
+      c.dim(`← response in ${(iterMs / 1000).toFixed(1)}s`) +
+      c.dim(` · ${resp.usage?.input_tokens ?? 0} in / ${resp.usage?.output_tokens ?? 0} out tokens`) +
+      c.dim(` · stop=${resp.stop_reason}`)
+    );
 
     messages.push({ role: 'assistant', content: resp.content });
 
@@ -272,20 +303,29 @@ If the user asks about existing notes, use listNotes() and readNote() before sea
 // ---------------------------------------------------------------------------
 // CLI entry
 // ---------------------------------------------------------------------------
-const question = process.argv.slice(2).join(' ').trim();
+const question = process.argv.slice(2).filter(a => a !== '--fast').join(' ').trim();
 
 if (!question) {
   console.log(`
 ${c.bold('Research Agent')} ${c.dim('— an AI agent that actually does research')}
 
 Usage:
-  node --env-file=.env agent-research.js "<your question>"
+  node --env-file=.env agent-research.js [--fast] "<your question>"
 
 Examples:
   node --env-file=.env agent-research.js "What are the top 3 open-source AI agent frameworks in 2026?"
-  node --env-file=.env agent-research.js "Latest research on retrieval-augmented generation, save to rag.md"
-  node --env-file=.env agent-research.js "What's happening with Claude Haiku 4.5 adoption?"
+  node --env-file=.env agent-research.js "Latest research on RAG, save to rag.md"
+  node --env-file=.env agent-research.js --fast "What is Claude Haiku 4.5?"
   node --env-file=.env agent-research.js "List my existing research notes"
+
+Flags:
+  --fast    use claude-haiku-4-5 instead of claude-sonnet-4-6
+            (faster responses, lower reasoning depth)
+
+Typical timing (expected, not a bug):
+  Sonnet + web_search   ${c.dim('iter 1:')} ${c.orange('8–15s')}  ${c.dim('(real web query + filter)')}
+  Sonnet + web_fetch    ${c.dim('per page:')} ${c.orange('3–8s')}
+  Haiku (with --fast)   ${c.dim('iter 1:')} ${c.orange('4–8s')}
 
 Output:
   ${c.dim('final answer')}  printed to the terminal
