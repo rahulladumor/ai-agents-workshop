@@ -52,7 +52,9 @@ node --env-file=.env agent.js
 # → Agent running on http://localhost:3000
 ```
 
-Test it in another terminal:
+Then **open http://localhost:3000 in a browser** — there's a live loop visualizer built in. Type a question, watch each iteration appear: the LLM deciding, tool calls firing with their input and result, the final answer. There's also a **"weaken tool description" toggle** that breaks the agent live so you can see hallucination happen in real time.
+
+Prefer the terminal? The raw endpoint still works:
 
 ```bash
 curl -sX POST http://localhost:3000/ask \
@@ -76,19 +78,21 @@ Two options:
 
 ```
 ai-agents-workshop/
-├── README.md               ← you are here
-├── agent.js                ← the live-demo code (under 150 lines)
+├── README.md                 ← you are here
+├── agent.js                  ← the agent code (≈200 lines)
+├── public/
+│   └── index.html            ← live loop visualizer (open in browser)
 ├── package.json
 ├── .env.example
 ├── docs/
-│   ├── 01-concepts.md      ← what/why — deeper teaching notes
-│   ├── 02-the-loop.md      ← the loop, step by step
-│   ├── 03-architecture.md  ← production architecture + end-to-end trace
-│   └── 04-production.md    ← how agents fail + how teams defend
+│   ├── 01-concepts.md        ← what/why — deeper teaching notes
+│   ├── 02-the-loop.md        ← the loop, step by step
+│   ├── 03-architecture.md    ← production architecture + end-to-end trace
+│   └── 04-production.md      ← how agents fail + how teams defend
 ├── exercises/
-│   ├── 01-trace-the-loop.md     ← warm-up (3 minutes, on paper)
-│   └── 02-design-your-agent.md  ← main exercise (7 minutes, in pairs)
-└── CHALLENGES.md           ← extensions to try after the workshop
+│   ├── 01-trace-the-loop.md       ← warm-up (3 minutes, on paper)
+│   └── 02-design-your-agent.md    ← main exercise (7 minutes, in pairs)
+└── CHALLENGES.md             ← extensions to try after the workshop
 ```
 
 ---
@@ -127,12 +131,26 @@ These all get called "agents" but aren't, under the definition above:
 
 ## What's in the demo agent
 
-- **Endpoint:** `POST /ask`
+- **Endpoints:**
+  - `GET /` — visual loop visualizer (open in browser)
+  - `POST /ask` — simple JSON endpoint (returns final answer)
+  - `GET /stream?q=...&weak=0|1` — streams every loop step as Server-Sent Events (powers the UI)
 - **Model:** `claude-haiku-4-5` (cheap, fast, excellent at tool use)
 - **Tools:** `getStudentCount`, `listCourses` — return hardcoded campus data
 - **Framework:** none. Just Express + the Anthropic SDK.
 - **Memory:** session-only (no persistent memory across requests)
 - **Max iterations:** 5 (the fuse)
+
+### For classroom showcase
+
+The browser UI at `http://localhost:3000` is designed to project on a big screen. Each event in the loop appears as a card students can read from the back row:
+
+1. **Goal received** — the user's question
+2. **Iteration N · LLM is deciding** — while Claude decides whether to call a tool
+3. **Iteration N · Tool call** — shows the exact input sent to the tool, and the structured result that came back
+4. **Final answer** — with iteration count, elapsed time, token usage, and estimated cost in rupees
+
+There's a **"Weaken tool description"** toggle at the top. Flip it on, ask the same question, and watch the model stop calling the tool — often inventing a number instead. Flip it back off, ask again, and watch it work. Thirty seconds, no code edit required. This is the single most effective teaching moment in the whole workshop.
 
 Try these four queries to see different parts of the loop:
 

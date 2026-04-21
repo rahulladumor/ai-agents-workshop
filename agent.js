@@ -1,10 +1,15 @@
 // agent.js  --  minimum-viable AI agent for the workshop demo
 //                uses the Anthropic SDK + Claude Haiku 4.5
 import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODEL = 'claude-haiku-4-5';
@@ -13,40 +18,53 @@ const MAX_ITERATIONS = 5;
 // ---------------------------------------------------------------
 // Tools -- this is what the LLM sees. The description IS a prompt.
 // ---------------------------------------------------------------
-const tools = [
-  {
-    name: 'getStudentCount',
-    description:
-      'Returns the number of students enrolled in a department for the current semester. ' +
-      'Use this whenever the user asks for student counts. Never guess.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        department: {
-          type: 'string',
-          description: 'Department code. Supported: CSE, ME, CE, EE.'
-        }
-      },
-      required: ['department']
+const STRONG_DESCRIPTIONS = {
+  getStudentCount:
+    'Returns the number of students enrolled in a department for the current semester. ' +
+    'Use this whenever the user asks for student counts. Never guess.',
+  listCourses:
+    'Returns the list of courses offered by a department this semester. ' +
+    'Use this when the user asks about courses or subjects. Never guess.'
+};
+
+const WEAK_DESCRIPTIONS = {
+  getStudentCount: 'Returns a number.',
+  listCourses: 'Returns a list.'
+};
+
+function buildTools(weakMode) {
+  const desc = weakMode ? WEAK_DESCRIPTIONS : STRONG_DESCRIPTIONS;
+  return [
+    {
+      name: 'getStudentCount',
+      description: desc.getStudentCount,
+      input_schema: {
+        type: 'object',
+        properties: {
+          department: {
+            type: 'string',
+            description: 'Department code. Supported: CSE, ME, CE, EE.'
+          }
+        },
+        required: ['department']
+      }
+    },
+    {
+      name: 'listCourses',
+      description: desc.listCourses,
+      input_schema: {
+        type: 'object',
+        properties: {
+          department: {
+            type: 'string',
+            description: 'Department code. Supported: CSE, ME, CE, EE.'
+          }
+        },
+        required: ['department']
+      }
     }
-  },
-  {
-    name: 'listCourses',
-    description:
-      'Returns the list of courses offered by a department this semester. ' +
-      'Use this when the user asks about courses or subjects. Never guess.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        department: {
-          type: 'string',
-          description: 'Department code. Supported: CSE, ME, CE, EE.'
-        }
-      },
-      required: ['department']
-    }
-  }
-];
+  ];
+}
 
 // ---------------------------------------------------------------
 // Tool handlers -- real code, returns structured data or structured errors.
@@ -80,16 +98,25 @@ const toolHandlers = { getStudentCount, listCourses };
 
 // ---------------------------------------------------------------
 // The agent loop -- this IS the agent. Everything else is plumbing.
+// Emits events to `onEvent` so the UI can render progress live.
 // ---------------------------------------------------------------
-async function runAgent(userMessage) {
+async function runAgent(userMessage, { weakMode = false, onEvent = () => {} } = {}) {
+  const tools = buildTools(weakMode);
   const system =
     'You are a campus assistant for engineering students. ' +
     'When the user asks about student counts or courses, you MUST call the matching tool. ' +
     'Never invent numbers or facts. If a tool returns an error, explain it plainly.';
 
   const messages = [{ role: 'user', content: userMessage }];
+  const startedAt = Date.now();
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+
+  onEvent({ type: 'start', question: userMessage, weakMode });
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
+    onEvent({ type: 'thinking', iteration: i + 1 });
+
     const resp = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 1024,
@@ -98,7 +125,9 @@ async function runAgent(userMessage) {
       messages
     });
 
-    // Append assistant turn (preserve the full content block list)
+    totalInputTokens += resp.usage?.input_tokens ?? 0;
+    totalOutputTokens += resp.usage?.output_tokens ?? 0;
+
     messages.push({ role: 'assistant', content: resp.content });
 
     if (resp.stop_reason === 'tool_use') {
@@ -118,6 +147,13 @@ async function runAgent(userMessage) {
         } catch (err) {
           result = { error: `Tool failed: ${err.message}` };
         }
+        onEvent({
+          type: 'tool_call',
+          iteration: i + 1,
+          name: block.name,
+          input: block.input,
+          result
+        });
         return {
           type: 'tool_result',
           tool_use_id: block.id,
@@ -132,28 +168,74 @@ async function runAgent(userMessage) {
     // stop_reason === 'end_turn' -- final answer, return it
     console.log(`[iter ${i + 1}] -> final answer`);
     const textBlock = resp.content.find(b => b.type === 'text');
-    return { answer: textBlock?.text ?? '', iterations: i + 1 };
+    const answer = textBlock?.text ?? '';
+    const elapsedMs = Date.now() - startedAt;
+    onEvent({
+      type: 'final',
+      iteration: i + 1,
+      answer,
+      elapsed_ms: elapsedMs,
+      input_tokens: totalInputTokens,
+      output_tokens: totalOutputTokens
+    });
+    return {
+      answer,
+      iterations: i + 1,
+      elapsed_ms: elapsedMs,
+      input_tokens: totalInputTokens,
+      output_tokens: totalOutputTokens
+    };
   }
 
-  return {
-    answer: 'Agent stopped: iteration limit reached.',
-    iterations: MAX_ITERATIONS
-  };
+  const stopped = { answer: 'Agent stopped: iteration limit reached.', iterations: MAX_ITERATIONS };
+  onEvent({ type: 'final', ...stopped, stopped_on_limit: true });
+  return stopped;
 }
 
 // ---------------------------------------------------------------
-// HTTP endpoint -- thin wrapper around runAgent()
+// POST /ask -- returns the final answer as JSON (simple, for curl + students)
 // ---------------------------------------------------------------
 app.post('/ask', async (req, res) => {
-  const { question } = req.body;
+  const { question, weak } = req.body;
   if (!question) return res.status(400).json({ error: 'question required' });
   try {
-    const result = await runAgent(question);
+    const result = await runAgent(question, { weakMode: !!weak });
     res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ---------------------------------------------------------------
+// GET /stream -- streams every step of the loop via Server-Sent Events
+// Used by the visual demo (public/index.html).
+// ---------------------------------------------------------------
+app.get('/stream', async (req, res) => {
+  const question = String(req.query.q || '').trim();
+  const weakMode = req.query.weak === '1';
+
+  if (!question) {
+    return res.status(400).json({ error: 'q param required' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  const emit = (event) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  };
+
+  try {
+    await runAgent(question, { weakMode, onEvent: emit });
+  } catch (err) {
+    console.error(err);
+    emit({ type: 'error', message: err.message });
+  }
+  emit({ type: 'done' });
+  res.end();
 });
 
 app.listen(3000, () =>

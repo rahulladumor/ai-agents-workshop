@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>AI Agent — Live Loop Visualizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg:       #0B0D10;
+    --panel:    #161A1F;
+    --panel-2:  #1C2027;
+    --text:     #E6E6E6;
+    --muted:    #8A8F98;
+    --dim:      #4A5058;
+    --accent:   #00D9B2;
+    --accent-2: #FFAA5A;
+    --danger:   #FF5C7A;
+    --ok:       #5ED598;
+    --border:   #232832;
+    --mono:     "Menlo", "Monaco", "SF Mono", "Consolas", monospace;
+    --sans:     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100%;
+  }
+  body {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    line-height: 1.5;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  h1 .accent { color: var(--accent); }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    font-family: var(--mono);
+    margin-bottom: 32px;
+  }
+  .bar {
+    height: 1px;
+    background: var(--border);
+    margin: 24px 0;
+  }
+  .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type="text"] {
+    flex: 1;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font: inherit;
+    font-size: 15px;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  button {
+    background: var(--accent);
+    color: #001914;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 18px;
+    font: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  button.quick {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-weight: 400;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  button.quick:hover { border-color: var(--accent); color: var(--accent); }
+
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    font-family: var(--mono);
+  }
+  .switch input { display: none; }
+  .switch .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--dim);
+    transition: background 0.15s;
+  }
+  .switch.on { color: var(--danger); border-color: var(--danger); }
+  .switch.on .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+  #trace { margin-top: 24px; }
+  .event {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    animation: fade 0.25s ease;
+  }
+  @keyframes fade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .event .head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .event .head .badge {
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--panel-2);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .event.thinking .badge { color: var(--accent-2); }
+  .event.tool .badge     { color: var(--accent); }
+  .event.final .badge    { color: var(--ok); }
+  .event.error .badge    { color: var(--danger); }
+
+  .event.thinking {
+    border-left: 3px solid var(--accent-2);
+  }
+  .event.tool {
+    border-left: 3px solid var(--accent);
+  }
+  .event.final {
+    border-left: 3px solid var(--ok);
+    background: linear-gradient(180deg, rgba(94,213,152,0.06), var(--panel));
+  }
+  .event.error {
+    border-left: 3px solid var(--danger);
+  }
+  .event .body { color: var(--text); word-break: break-word; }
+  .event .answer {
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 8px 0 12px;
+  }
+  .event .kv {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    font-size: 11px; color: var(--muted);
+    margin-top: 6px;
+  }
+  .event .kv span .n { color: var(--text); font-weight: 600; }
+
+  pre.json {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  pre.json .k { color: var(--accent-2); }
+  pre.json .s { color: var(--accent); }
+  pre.json .n { color: var(--ok); }
+
+  .placeholder {
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 40px 0;
+    text-align: center;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent-2);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50%      { opacity: 1; }
+  }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>Building AI Agents <span class="accent">· live loop visualizer</span></h1>
+<p class="subtitle">Ask a question. Watch the agent decide, call tools, observe results, and answer.</p>
+
+<div class="label">Ask a question</div>
+<div class="row">
+  <input id="q" type="text" placeholder='e.g. "How many students in CSE this semester?"' />
+  <button id="ask">Ask</button>
+</div>
+
+<div style="margin-top: 16px;">
+  <div class="label">Try one of these</div>
+  <div class="row">
+    <button class="quick" data-q="How many students in CSE this semester?">CSE student count</button>
+    <button class="quick" data-q="What is 2 plus 2?">2 + 2 (no tool needed)</button>
+    <button class="quick" data-q="How many students in Computer Science?">"Computer Science" (watch it self-correct)</button>
+    <button class="quick" data-q="Tell me everything about CSE — student count and courses.">Everything about CSE (two tools)</button>
+  </div>
+</div>
+
+<div style="margin-top: 16px;">
+  <label class="switch" id="weakToggle">
+    <input type="checkbox" id="weak" />
+    <span class="dot"></span>
+    <span>Weaken tool description (break the agent live)</span>
+  </label>
+</div>
+
+<div class="bar"></div>
+
+<div class="label">Loop trace</div>
+<div id="trace">
+  <div class="placeholder">Ask a question to see the agent loop run step by step.</div>
+</div>
+
+<footer>
+  Model: <strong>claude-haiku-4-5</strong> · Code: <a href="https://github.com/rahulladumor/ai-agents-workshop" target="_blank">github.com/rahulladumor/ai-agents-workshop</a>
+</footer>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const trace = $('trace');
+  const input = $('q');
+  const askBtn = $('ask');
+  const weakToggle = $('weakToggle');
+  const weakInput = $('weak');
+
+  weakToggle.addEventListener('click', (e) => {
+    if (e.target !== weakInput) {
+      weakInput.checked = !weakInput.checked;
+    }
+    weakToggle.classList.toggle('on', weakInput.checked);
+  });
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function prettyJson(obj) {
+    return esc(JSON.stringify(obj, null, 2))
+      .replace(/"([^"]+)":/g, '<span class="k">"$1"</span>:')
+      .replace(/: "([^"]*)"/g, ': <span class="s">"$1"</span>')
+      .replace(/: (\d+)/g, ': <span class="n">$1</span>');
+  }
+
+  function clearTrace() {
+    trace.innerHTML = '';
+  }
+
+  function render(event) {
+    switch (event.type) {
+      case 'start':
+        addEvent('thinking', `Goal received`, `
+          <div class="body">${esc(event.question)}</div>
+          ${event.weakMode ? '<div class="kv"><span style="color:var(--danger)">⚠ Weak tool descriptions active</span></div>' : ''}
+        `);
+        return;
+      case 'thinking':
+        addEvent('thinking', `Iteration ${event.iteration} · LLM is deciding <span class="spinner"></span>`, `
+          <div class="body" style="color:var(--muted)">Asking Claude: should I call a tool, or answer the user?</div>
+        `);
+        return;
+      case 'tool_call': {
+        const hasError = event.result && event.result.error;
+        const lastThinking = trace.querySelector('.event.thinking:last-child');
+        if (lastThinking) {
+          const spinner = lastThinking.querySelector('.spinner');
+          if (spinner) spinner.remove();
+          const head = lastThinking.querySelector('.head .badge');
+          if (head && head.textContent.endsWith('LLM is deciding')) {
+            head.innerHTML = head.innerHTML.replace('LLM is deciding', 'Decision: call tool');
+          }
+        }
+        addEvent('tool', `Iteration ${event.iteration} · Tool call: ${esc(event.name)}()`, `
+          <div class="body">
+            <div style="color:var(--muted); font-size:11px; margin-bottom:4px;">INPUT</div>
+            <pre class="json">${prettyJson(event.input)}</pre>
+            <div style="color:${hasError ? 'var(--danger)' : 'var(--muted)'}; font-size:11px; margin:10px 0 4px;">
+              ${hasError ? 'ERROR (returned as data, not thrown)' : 'RESULT'}
+            </div>
+            <pre class="json">${prettyJson(event.result)}</pre>
+          </div>
+        `);
+        return;
+      }
+      case 'final': {
+        const lastThinking = trace.querySelector('.event.thinking:last-child');
+        if (lastThinking) {
+          const spinner = lastThinking.querySelector('.spinner');
+          if (spinner) spinner.remove();
+          const head = lastThinking.querySelector('.head .badge');
+          if (head && head.textContent.endsWith('LLM is deciding')) {
+            head.innerHTML = head.innerHTML.replace('LLM is deciding', 'Decision: answer');
+          }
+        }
+        const cost = ((event.input_tokens || 0) * 1 + (event.output_tokens || 0) * 5) / 1_000_000;
+        const rupees = (cost * 85).toFixed(4); // rough ₹/$ conversion for display
+        addEvent('final', 'Final answer', `
+          <div class="answer">${esc(event.answer)}</div>
+          <div class="kv">
+            <span>iterations: <span class="n">${event.iteration}</span></span>
+            <span>elapsed: <span class="n">${((event.elapsed_ms || 0) / 1000).toFixed(2)}s</span></span>
+            <span>tokens: <span class="n">${event.input_tokens || 0} in / ${event.output_tokens || 0} out</span></span>
+            <span>cost: <span class="n">~₹${rupees}</span></span>
+          </div>
+        `);
+        return;
+      }
+      case 'error':
+        addEvent('error', 'Error', `<div class="body">${esc(event.message)}</div>`);
+        return;
+      case 'done':
+        askBtn.disabled = false;
+        askBtn.textContent = 'Ask';
+        return;
+    }
+  }
+
+  function addEvent(kind, head, body) {
+    const el = document.createElement('div');
+    el.className = `event ${kind}`;
+    el.innerHTML = `<div class="head"><span class="badge">${head}</span></div>${body}`;
+    trace.appendChild(el);
+    el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
+
+  function ask(question) {
+    if (!question || askBtn.disabled) return;
+    input.value = question;
+    clearTrace();
+    askBtn.disabled = true;
+    askBtn.textContent = 'Running…';
+
+    const params = new URLSearchParams({
+      q: question,
+      weak: weakInput.checked ? '1' : '0'
+    });
+    const es = new EventSource('/stream?' + params.toString());
+    es.onmessage = (msg) => {
+      try {
+        const event = JSON.parse(msg.data);
+        render(event);
+        if (event.type === 'done' || event.type === 'error') es.close();
+      } catch (err) {
+        console.error('bad event', err, msg.data);
+      }
+    };
+    es.onerror = () => {
+      render({ type: 'error', message: 'Stream connection failed. Is the server running?' });
+      askBtn.disabled = false;
+      askBtn.textContent = 'Ask';
+      es.close();
+    };
+  }
+
+  askBtn.addEventListener('click', () => ask(input.value.trim()));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') ask(input.value.trim());
+  });
+  document.querySelectorAll('button.quick').forEach(btn => {
+    btn.addEventListener('click', () => ask(btn.dataset.q));
+  });
+</script>
+
+</body>
+</html>
