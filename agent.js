@@ -1,11 +1,19 @@
-// agent.js  --  minimum-viable AI agent for the workshop demo
-//                uses the Anthropic SDK + Claude Haiku 4.5
+// agent.js  --  workshop server: campus agent + research agent, both with a visual UI
+//
+// Routes:
+//   GET  /                         browser UI (visualizer)
+//   POST /ask                      campus agent, returns final answer JSON
+//   GET  /stream?q=...&weak=0|1    campus agent, SSE stream of loop steps
+//   GET  /stream-research?q=...&fast=0|1   research agent, SSE stream
+//
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
+import { runResearchAgent } from './lib/research.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const RESEARCH_DIR = path.join(__dirname, 'research');
 
 const app = express();
 app.use(express.json());
@@ -230,6 +238,40 @@ app.get('/stream', async (req, res) => {
 
   try {
     await runAgent(question, { weakMode, onEvent: emit });
+  } catch (err) {
+    console.error(err);
+    emit({ type: 'error', message: err.message });
+  }
+  emit({ type: 'done' });
+  res.end();
+});
+
+// ---------------------------------------------------------------
+// GET /stream-research -- streams the research agent loop via SSE
+// ---------------------------------------------------------------
+app.get('/stream-research', async (req, res) => {
+  const question = String(req.query.q || '').trim();
+  const fast = req.query.fast === '1';
+
+  if (!question) {
+    return res.status(400).json({ error: 'q param required' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  const emit = (event) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  };
+
+  try {
+    await runResearchAgent(question, {
+      fast,
+      researchDir: RESEARCH_DIR,
+      onEvent: emit
+    });
   } catch (err) {
     console.error(err);
     emit({ type: 'error', message: err.message });

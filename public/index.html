@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>AI Agent — Live Loop Visualizer</title>
+<title>AI Agents — Live Loop Visualizer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root {
@@ -28,7 +28,7 @@
     min-height: 100%;
   }
   body {
-    max-width: 980px;
+    max-width: 1040px;
     margin: 0 auto;
     padding: 32px 24px 64px;
     line-height: 1.5;
@@ -44,7 +44,7 @@
     color: var(--muted);
     font-size: 14px;
     font-family: var(--mono);
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
   .bar {
     height: 1px;
@@ -60,6 +60,35 @@
     margin-bottom: 8px;
   }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* Agent tab selector */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 24px;
+    width: fit-content;
+  }
+  .tab {
+    padding: 8px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    background: var(--panel-2);
+    color: var(--accent);
+  }
+
   input[type="text"] {
     flex: 1;
     background: var(--panel);
@@ -117,10 +146,11 @@
     background: var(--dim);
     transition: background 0.15s;
   }
-  .switch.on { color: var(--danger); border-color: var(--danger); }
-  .switch.on .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .switch.on .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .switch.danger.on { color: var(--danger); border-color: var(--danger); }
+  .switch.danger.on .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
 
-  #trace { margin-top: 24px; }
+  #trace { margin-top: 20px; }
   .event {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -152,35 +182,34 @@
   }
   .event.thinking .badge { color: var(--accent-2); }
   .event.tool .badge     { color: var(--accent); }
+  .event.server .badge   { color: var(--accent); }
   .event.final .badge    { color: var(--ok); }
   .event.error .badge    { color: var(--danger); }
+  .event.meta .badge     { color: var(--muted); font-weight: 400; }
+  .event.note .badge     { color: var(--muted); font-weight: 400; }
 
-  .event.thinking {
-    border-left: 3px solid var(--accent-2);
-  }
-  .event.tool {
-    border-left: 3px solid var(--accent);
-  }
-  .event.final {
-    border-left: 3px solid var(--ok);
-    background: linear-gradient(180deg, rgba(94,213,152,0.06), var(--panel));
-  }
-  .event.error {
-    border-left: 3px solid var(--danger);
-  }
+  .event.thinking { border-left: 3px solid var(--accent-2); }
+  .event.tool     { border-left: 3px solid var(--accent); }
+  .event.server   { border-left: 3px solid var(--accent); background: linear-gradient(180deg, rgba(0,217,178,0.04), var(--panel)); }
+  .event.final    { border-left: 3px solid var(--ok);     background: linear-gradient(180deg, rgba(94,213,152,0.06), var(--panel)); }
+  .event.error    { border-left: 3px solid var(--danger); }
+  .event.meta     { border-left: 3px solid var(--dim);    }
+  .event.note     { border-left: 3px solid var(--dim);    }
+
   .event .body { color: var(--text); word-break: break-word; }
   .event .answer {
     font-family: var(--sans);
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.65;
     margin: 8px 0 12px;
+    white-space: pre-wrap;
   }
   .event .kv {
     display: flex; flex-wrap: wrap; gap: 14px;
     font-size: 11px; color: var(--muted);
     margin-top: 6px;
   }
-  .event .kv span .n { color: var(--text); font-weight: 600; }
+  .event .kv .n { color: var(--text); font-weight: 600; }
 
   pre.json {
     background: var(--panel-2);
@@ -195,6 +224,21 @@
   pre.json .k { color: var(--accent-2); }
   pre.json .s { color: var(--accent); }
   pre.json .n { color: var(--ok); }
+
+  .search-result {
+    margin: 6px 0;
+    padding-left: 8px;
+    border-left: 2px solid var(--border);
+  }
+  .search-result a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .search-result a:hover { text-decoration: underline; }
+  .search-result .u { color: var(--muted); font-size: 11px; word-break: break-all; }
+  .search-result .snip { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
   .placeholder {
     color: var(--dim);
@@ -225,35 +269,47 @@
   }
   footer a { color: var(--accent); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
+
+  .hint {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    margin-top: 4px;
+  }
 </style>
 </head>
 <body>
 
 <h1>Building AI Agents <span class="accent">· live loop visualizer</span></h1>
-<p class="subtitle">Ask a question. Watch the agent decide, call tools, observe results, and answer.</p>
+<p class="subtitle">Two agents. Same loop. Pick one and watch it run.</p>
 
-<div class="label">Ask a question</div>
-<div class="row">
-  <input id="q" type="text" placeholder='e.g. "How many students in CSE this semester?"' />
-  <button id="ask">Ask</button>
+<div class="tabs" id="tabs">
+  <button class="tab active" data-agent="campus">Campus Assistant</button>
+  <button class="tab" data-agent="research">Research Agent</button>
+</div>
+
+<div id="agent-campus">
+  <div class="hint">Synthetic tools (in-memory lookup). Under 150 lines. The teaching primitive.</div>
+</div>
+<div id="agent-research" hidden>
+  <div class="hint">Real tools: web_search, web_fetch, saveNote. Actually hits the internet. Iter 1 with Sonnet can take 8–15 seconds — that's real web work.</div>
 </div>
 
 <div style="margin-top: 16px;">
-  <div class="label">Try one of these</div>
+  <div class="label">Ask a question</div>
   <div class="row">
-    <button class="quick" data-q="How many students in CSE this semester?">CSE student count</button>
-    <button class="quick" data-q="What is 2 plus 2?">2 + 2 (no tool needed)</button>
-    <button class="quick" data-q="How many students in Computer Science?">"Computer Science" (watch it self-correct)</button>
-    <button class="quick" data-q="Tell me everything about CSE — student count and courses.">Everything about CSE (two tools)</button>
+    <input id="q" type="text" placeholder="Ask anything…" />
+    <button id="ask">Ask</button>
   </div>
 </div>
 
 <div style="margin-top: 16px;">
-  <label class="switch" id="weakToggle">
-    <input type="checkbox" id="weak" />
-    <span class="dot"></span>
-    <span>Weaken tool description (break the agent live)</span>
-  </label>
+  <div class="label">Try one of these</div>
+  <div class="row" id="quickBtns"></div>
+</div>
+
+<div style="margin-top: 16px;">
+  <div class="row" id="toggles"></div>
 </div>
 
 <div class="bar"></div>
@@ -264,7 +320,7 @@
 </div>
 
 <footer>
-  Model: <strong>claude-haiku-4-5</strong> · Code: <a href="https://github.com/rahulladumor/ai-agents-workshop" target="_blank">github.com/rahulladumor/ai-agents-workshop</a>
+  Campus: <strong>claude-haiku-4-5</strong> · Research: <strong>claude-sonnet-4-6</strong> (or <strong>haiku-4-5</strong> with --fast) · Code: <a href="https://github.com/rahulladumor/ai-agents-workshop" target="_blank">github.com/rahulladumor/ai-agents-workshop</a>
 </footer>
 
 <script>
@@ -272,15 +328,100 @@
   const trace = $('trace');
   const input = $('q');
   const askBtn = $('ask');
-  const weakToggle = $('weakToggle');
-  const weakInput = $('weak');
+  const tabs = $('tabs');
+  const quickBtns = $('quickBtns');
+  const toggles = $('toggles');
 
-  weakToggle.addEventListener('click', (e) => {
-    if (e.target !== weakInput) {
-      weakInput.checked = !weakInput.checked;
+  let agent = 'campus';
+  let eventSource = null;
+
+  const CONFIG = {
+    campus: {
+      endpoint: '/stream',
+      placeholder: 'e.g. "How many students in CSE this semester?"',
+      quick: [
+        { label: 'CSE student count',            q: 'How many students in CSE this semester?' },
+        { label: '2 + 2 (no tool)',              q: 'What is 2 plus 2?' },
+        { label: '"Computer Science" (self-correct)', q: 'How many students in Computer Science?' },
+        { label: 'Everything about CSE (2 tools)',    q: 'Tell me everything about CSE — student count and courses.' }
+      ],
+      toggles: [
+        { id: 'weak', label: 'Weaken tool description (break the agent live)', danger: true }
+      ]
+    },
+    research: {
+      endpoint: '/stream-research',
+      placeholder: 'e.g. "Latest papers on retrieval-augmented generation, save to rag.md"',
+      quick: [
+        { label: 'What is Claude Haiku 4.5?',       q: 'What is Claude Haiku 4.5?' },
+        { label: 'Top open-source agent frameworks 2026', q: 'What are the top 3 open-source AI agent frameworks in 2026?' },
+        { label: 'RAG research → save to rag.md',   q: 'Latest research on retrieval-augmented generation. Save a 300-word summary to rag.md.' },
+        { label: 'List my research notes',          q: 'List my existing research notes.' }
+      ],
+      toggles: [
+        { id: 'fast', label: 'Fast mode (Haiku 4.5 instead of Sonnet 4.6)', danger: false }
+      ]
     }
-    weakToggle.classList.toggle('on', weakInput.checked);
+  };
+
+  function switchAgent(name) {
+    agent = name;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.agent === name));
+    document.getElementById('agent-campus').hidden = name !== 'campus';
+    document.getElementById('agent-research').hidden = name !== 'research';
+
+    const cfg = CONFIG[name];
+    input.placeholder = cfg.placeholder;
+    input.value = '';
+
+    quickBtns.innerHTML = '';
+    cfg.quick.forEach(({ label, q }) => {
+      const b = document.createElement('button');
+      b.className = 'quick';
+      b.textContent = label;
+      b.addEventListener('click', () => ask(q));
+      quickBtns.appendChild(b);
+    });
+
+    toggles.innerHTML = '';
+    cfg.toggles.forEach(({ id, label, danger }) => {
+      const lb = document.createElement('label');
+      lb.className = 'switch' + (danger ? ' danger' : '');
+      lb.dataset.id = id;
+      lb.innerHTML = `
+        <input type="checkbox" data-toggle="${id}" />
+        <span class="dot"></span>
+        <span>${label}</span>
+      `;
+      lb.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') {
+          const cb = lb.querySelector('input');
+          cb.checked = !cb.checked;
+        }
+        lb.classList.toggle('on', lb.querySelector('input').checked);
+      });
+      toggles.appendChild(lb);
+    });
+
+    clearTrace();
+  }
+
+  tabs.addEventListener('click', (e) => {
+    if (e.target.matches('.tab')) {
+      if (eventSource) eventSource.close();
+      askBtn.disabled = false;
+      askBtn.textContent = 'Ask';
+      switchAgent(e.target.dataset.agent);
+    }
   });
+
+  function getToggleValues() {
+    const out = {};
+    toggles.querySelectorAll('input[data-toggle]').forEach(cb => {
+      out[cb.dataset.toggle] = cb.checked;
+    });
+    return out;
+  }
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({
@@ -289,84 +430,17 @@
   }
 
   function prettyJson(obj) {
-    return esc(JSON.stringify(obj, null, 2))
-      .replace(/"([^"]+)":/g, '<span class="k">"$1"</span>:')
-      .replace(/: "([^"]*)"/g, ': <span class="s">"$1"</span>')
-      .replace(/: (\d+)/g, ': <span class="n">$1</span>');
-  }
-
-  function clearTrace() {
-    trace.innerHTML = '';
-  }
-
-  function render(event) {
-    switch (event.type) {
-      case 'start':
-        addEvent('thinking', `Goal received`, `
-          <div class="body">${esc(event.question)}</div>
-          ${event.weakMode ? '<div class="kv"><span style="color:var(--danger)">⚠ Weak tool descriptions active</span></div>' : ''}
-        `);
-        return;
-      case 'thinking':
-        addEvent('thinking', `Iteration ${event.iteration} · LLM is deciding <span class="spinner"></span>`, `
-          <div class="body" style="color:var(--muted)">Asking Claude: should I call a tool, or answer the user?</div>
-        `);
-        return;
-      case 'tool_call': {
-        const hasError = event.result && event.result.error;
-        const lastThinking = trace.querySelector('.event.thinking:last-child');
-        if (lastThinking) {
-          const spinner = lastThinking.querySelector('.spinner');
-          if (spinner) spinner.remove();
-          const head = lastThinking.querySelector('.head .badge');
-          if (head && head.textContent.endsWith('LLM is deciding')) {
-            head.innerHTML = head.innerHTML.replace('LLM is deciding', 'Decision: call tool');
-          }
-        }
-        addEvent('tool', `Iteration ${event.iteration} · Tool call: ${esc(event.name)}()`, `
-          <div class="body">
-            <div style="color:var(--muted); font-size:11px; margin-bottom:4px;">INPUT</div>
-            <pre class="json">${prettyJson(event.input)}</pre>
-            <div style="color:${hasError ? 'var(--danger)' : 'var(--muted)'}; font-size:11px; margin:10px 0 4px;">
-              ${hasError ? 'ERROR (returned as data, not thrown)' : 'RESULT'}
-            </div>
-            <pre class="json">${prettyJson(event.result)}</pre>
-          </div>
-        `);
-        return;
-      }
-      case 'final': {
-        const lastThinking = trace.querySelector('.event.thinking:last-child');
-        if (lastThinking) {
-          const spinner = lastThinking.querySelector('.spinner');
-          if (spinner) spinner.remove();
-          const head = lastThinking.querySelector('.head .badge');
-          if (head && head.textContent.endsWith('LLM is deciding')) {
-            head.innerHTML = head.innerHTML.replace('LLM is deciding', 'Decision: answer');
-          }
-        }
-        const cost = ((event.input_tokens || 0) * 1 + (event.output_tokens || 0) * 5) / 1_000_000;
-        const rupees = (cost * 85).toFixed(4); // rough ₹/$ conversion for display
-        addEvent('final', 'Final answer', `
-          <div class="answer">${esc(event.answer)}</div>
-          <div class="kv">
-            <span>iterations: <span class="n">${event.iteration}</span></span>
-            <span>elapsed: <span class="n">${((event.elapsed_ms || 0) / 1000).toFixed(2)}s</span></span>
-            <span>tokens: <span class="n">${event.input_tokens || 0} in / ${event.output_tokens || 0} out</span></span>
-            <span>cost: <span class="n">~₹${rupees}</span></span>
-          </div>
-        `);
-        return;
-      }
-      case 'error':
-        addEvent('error', 'Error', `<div class="body">${esc(event.message)}</div>`);
-        return;
-      case 'done':
-        askBtn.disabled = false;
-        askBtn.textContent = 'Ask';
-        return;
+    try {
+      return esc(JSON.stringify(obj, null, 2))
+        .replace(/"([^"]+)":/g, '<span class="k">"$1"</span>:')
+        .replace(/: "([^"]*)"/g, ': <span class="s">"$1"</span>')
+        .replace(/: (\d+)/g, ': <span class="n">$1</span>');
+    } catch {
+      return esc(String(obj));
     }
   }
+
+  function clearTrace() { trace.innerHTML = ''; }
 
   function addEvent(kind, head, body) {
     const el = document.createElement('div');
@@ -374,6 +448,142 @@
     el.innerHTML = `<div class="head"><span class="badge">${head}</span></div>${body}`;
     trace.appendChild(el);
     el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    return el;
+  }
+
+  function replaceLastSpinner(newHead) {
+    const last = trace.querySelector('.event.thinking:last-of-type .badge');
+    if (!last) return;
+    last.innerHTML = newHead;
+    const spinner = last.parentElement.parentElement.querySelector('.spinner');
+    if (spinner) spinner.remove();
+  }
+
+  function render(event) {
+    switch (event.type) {
+      case 'start':
+        addEvent('meta', `Goal · model: ${esc(event.model || 'claude-haiku-4-5')}`, `
+          <div class="body">${esc(event.question)}</div>
+          ${event.weakMode ? '<div class="kv"><span style="color:var(--danger)">⚠ Weak tool descriptions active</span></div>' : ''}
+          ${event.fast ? '<div class="kv"><span style="color:var(--accent-2)">⚡ Fast mode (Haiku)</span></div>' : ''}
+        `);
+        return;
+
+      case 'thinking':
+        addEvent('thinking', `Iteration ${event.iteration} · LLM is deciding <span class="spinner"></span>`, `
+          <div class="body" style="color:var(--muted)">Claude is choosing: call a tool, or answer?</div>
+        `);
+        return;
+
+      case 'iteration_complete':
+        // Upgrade the thinking card's header with timing + stop reason
+        replaceLastSpinner(
+          `Iteration ${event.iteration} · ` +
+          (event.stop_reason === 'end_turn' ? 'answering' :
+           event.stop_reason === 'tool_use' ? 'calling tool' :
+           event.stop_reason === 'pause_turn' ? 'paused, resuming' :
+           event.stop_reason)
+        );
+        // Add meta card with the numbers
+        addEvent('meta', `← ${(event.elapsed_ms / 1000).toFixed(1)}s · ${event.input_tokens} in / ${event.output_tokens} out tokens · stop=${event.stop_reason}`, '');
+        return;
+
+      case 'note':
+        addEvent('note', `Iteration ${event.iteration} · model said`, `
+          <div class="body" style="color:var(--muted);font-style:italic">${esc(event.text.slice(0, 300))}${event.text.length > 300 ? '…' : ''}</div>
+        `);
+        return;
+
+      case 'pause_turn':
+        addEvent('meta', `Iteration ${event.iteration} · server-side tool paused, resuming`, '');
+        return;
+
+      case 'tool_call': {
+        const kind = event.server_side ? 'server' : 'tool';
+        const label = event.server_side ? 'Server-side tool' : 'Tool call';
+        const hasResult = event.result !== undefined;
+        const hasError = hasResult && event.result && event.result.error;
+
+        addEvent(kind, `Iteration ${event.iteration} · ${label}: ${esc(event.name)}()`, `
+          <div class="body">
+            <div style="color:var(--muted); font-size:11px; margin-bottom:4px;">INPUT</div>
+            <pre class="json">${prettyJson(event.input)}</pre>
+            ${hasResult ? `
+              <div style="color:${hasError ? 'var(--danger)' : 'var(--muted)'}; font-size:11px; margin:10px 0 4px;">
+                ${hasError ? 'ERROR (returned as data, not thrown)' : 'RESULT'}
+              </div>
+              <pre class="json">${prettyJson(event.result)}</pre>
+            ` : event.server_side ? `
+              <div style="color:var(--muted); font-size:11px; margin-top:10px;">server-side — result arrives as a separate event</div>
+            ` : ''}
+          </div>
+        `);
+        return;
+      }
+
+      case 'tool_result': {
+        // Server-side tool result: web_search, web_fetch
+        if (event.name === 'web_search' && Array.isArray(event.result)) {
+          const items = event.result
+            .filter(r => r.type === 'web_search_result')
+            .slice(0, 5)
+            .map(r => `
+              <div class="search-result">
+                <a href="${esc(r.url)}" target="_blank">${esc(r.title || r.url)}</a>
+                <div class="u">${esc(r.url)}</div>
+                ${r.snippet ? `<div class="snip">${esc(r.snippet)}</div>` : ''}
+              </div>
+            `).join('');
+          addEvent('server', `Iteration ${event.iteration} · web_search → ${event.result.length} result${event.result.length === 1 ? '' : 's'}`, `
+            <div class="body">${items || '<div style="color:var(--muted)">no structured results (check raw JSON in network tab)</div>'}</div>
+          `);
+          return;
+        }
+        if (event.name === 'web_fetch') {
+          const r = Array.isArray(event.result) ? event.result[0] : event.result;
+          addEvent('server', `Iteration ${event.iteration} · web_fetch → page retrieved`, `
+            <div class="body">
+              <a href="${esc(r?.url || '')}" target="_blank" style="color:var(--accent)">${esc(r?.url || '(no url)')}</a>
+              <div style="color:var(--muted); font-size:11px; margin-top:6px;">Claude now has the page content in its context.</div>
+            </div>
+          `);
+          return;
+        }
+        addEvent('server', `Iteration ${event.iteration} · ${esc(event.name)} result`, `
+          <div class="body"><pre class="json">${prettyJson(event.result)}</pre></div>
+        `);
+        return;
+      }
+
+      case 'final': {
+        replaceLastSpinner(`Iteration ${event.iteration} · answering`);
+        const input = event.input_tokens || 0;
+        const output = event.output_tokens || 0;
+        // rough cost estimate (USD) — sonnet: $3/1M in, $15/1M out; haiku: $1/$5
+        // we don't know which one it was from the event, use sonnet-ish guess for research, haiku for campus
+        const costUsd = (input * 3 + output * 15) / 1_000_000;
+        const rupees = (costUsd * 85).toFixed(4);
+        addEvent('final', 'Final answer', `
+          <div class="answer">${esc(event.answer)}</div>
+          <div class="kv">
+            <span>iterations: <span class="n">${event.iteration}</span></span>
+            <span>elapsed: <span class="n">${((event.elapsed_ms || 0) / 1000).toFixed(2)}s</span></span>
+            <span>tokens: <span class="n">${input} in / ${output} out</span></span>
+            <span>~cost: <span class="n">₹${rupees}</span></span>
+          </div>
+        `);
+        return;
+      }
+
+      case 'error':
+        addEvent('error', 'Error', `<div class="body">${esc(event.message)}</div>`);
+        return;
+
+      case 'done':
+        askBtn.disabled = false;
+        askBtn.textContent = 'Ask';
+        return;
+    }
   }
 
   function ask(question) {
@@ -383,25 +593,32 @@
     askBtn.disabled = true;
     askBtn.textContent = 'Running…';
 
-    const params = new URLSearchParams({
-      q: question,
-      weak: weakInput.checked ? '1' : '0'
-    });
-    const es = new EventSource('/stream?' + params.toString());
-    es.onmessage = (msg) => {
+    const cfg = CONFIG[agent];
+    const toggles = getToggleValues();
+    const params = new URLSearchParams({ q: question });
+    for (const [k, v] of Object.entries(toggles)) {
+      params.set(k, v ? '1' : '0');
+    }
+
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource(cfg.endpoint + '?' + params.toString());
+    eventSource.onmessage = (msg) => {
       try {
         const event = JSON.parse(msg.data);
         render(event);
-        if (event.type === 'done' || event.type === 'error') es.close();
+        if (event.type === 'done' || event.type === 'error') {
+          eventSource.close();
+          eventSource = null;
+        }
       } catch (err) {
         console.error('bad event', err, msg.data);
       }
     };
-    es.onerror = () => {
+    eventSource.onerror = () => {
       render({ type: 'error', message: 'Stream connection failed. Is the server running?' });
       askBtn.disabled = false;
       askBtn.textContent = 'Ask';
-      es.close();
+      if (eventSource) { eventSource.close(); eventSource = null; }
     };
   }
 
@@ -409,9 +626,9 @@
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') ask(input.value.trim());
   });
-  document.querySelectorAll('button.quick').forEach(btn => {
-    btn.addEventListener('click', () => ask(btn.dataset.q));
-  });
+
+  // Initialize with campus agent
+  switchAgent('campus');
 </script>
 
 </body>
