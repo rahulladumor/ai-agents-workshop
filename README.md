@@ -72,14 +72,32 @@ Two options:
 
 ---
 
+## Two agents in this repo
+
+**`agent.js`** — the *teaching primitive*. A campus assistant with synthetic in-memory tools (`getStudentCount`, `listCourses`). Runs on `http://localhost:3000` with a browser-based live loop visualizer. Designed to be read, modified, and projected on a big screen. Under 200 lines.
+
+**`agent-research.js`** — a *real-shaped agent*. Uses Claude's hosted `web_search` and `web_fetch` tools plus custom `saveNote`/`readNote`/`listNotes` tools. It decides what to search, reads the pages it finds, synthesizes answers, and saves findings to `./research/*.md`. CLI-based. Sonnet 4.6 for better multi-step reasoning.
+
+```bash
+# Research agent: actually goes to the web and does work
+node --env-file=.env agent-research.js "What's happening with open-source AI agent frameworks in 2026?"
+node --env-file=.env agent-research.js "Latest research on retrieval-augmented generation, save to rag.md"
+```
+
+> **Note:** `agent-research.js` uses Anthropic's hosted web_search tool, which costs ~$0.01 per search (on top of model token costs). Haiku is not used here — Sonnet 4.6 reasons better across multi-step research. Expect 3–10¢ per real research query.
+
+---
+
 ## Repo layout
 
 ```
 ai-agents-workshop/
 ├── README.md                 ← you are here
-├── agent.js                  ← the agent code (≈200 lines)
+├── agent.js                  ← teaching primitive: campus assistant + browser UI (≈200 lines)
+├── agent-research.js         ← real-shaped agent: web search + fetch + local notes (CLI)
 ├── public/
-│   └── index.html            ← live loop visualizer (open in browser)
+│   └── index.html            ← live loop visualizer for agent.js
+├── research/                 ← saveNote() writes here (gitignored)
 ├── package.json
 ├── .env.example
 ├── docs/
