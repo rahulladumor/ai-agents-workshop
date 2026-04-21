@@ -4,6 +4,8 @@
 <meta charset="utf-8" />
 <title>AI Agents — Live Loop Visualizer</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- marked for rendering markdown in the final-answer card -->
+<script src="https://cdn.jsdelivr.net/npm/marked@13.0.2/marked.min.js"></script>
 <style>
   :root {
     --bg:       #0B0D10;
@@ -197,12 +199,88 @@
   .event.note     { border-left: 3px solid var(--dim);    }
 
   .event .body { color: var(--text); word-break: break-word; }
+  /* Rendered markdown in the final-answer card */
   .event .answer {
     font-family: var(--sans);
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.65;
     margin: 8px 0 12px;
-    white-space: pre-wrap;
+    color: var(--text);
+  }
+  .event .answer h1,
+  .event .answer h2,
+  .event .answer h3,
+  .event .answer h4 {
+    font-family: var(--sans);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 18px 0 8px;
+    line-height: 1.3;
+  }
+  .event .answer h1 { font-size: 22px; }
+  .event .answer h2 { font-size: 19px; color: var(--accent); }
+  .event .answer h3 { font-size: 16px; color: var(--accent); }
+  .event .answer h4 { font-size: 15px; color: var(--accent-2); }
+  .event .answer h1:first-child,
+  .event .answer h2:first-child,
+  .event .answer h3:first-child { margin-top: 0; }
+  .event .answer p { margin: 8px 0; }
+  .event .answer strong { color: var(--text); font-weight: 700; }
+  .event .answer em { color: var(--muted); font-style: italic; }
+  .event .answer ul,
+  .event .answer ol { margin: 8px 0 8px 22px; padding: 0; }
+  .event .answer li { margin: 4px 0; }
+  .event .answer li::marker { color: var(--accent); }
+  .event .answer a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--dim); }
+  .event .answer a:hover { border-bottom-color: var(--accent); }
+  .event .answer code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--accent-2);
+  }
+  .event .answer pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 10px 0;
+  }
+  .event .answer pre code {
+    background: transparent;
+    padding: 0;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .event .answer blockquote {
+    border-left: 3px solid var(--dim);
+    padding: 4px 12px;
+    margin: 10px 0;
+    color: var(--muted);
+  }
+  .event .answer hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+  }
+  .event .answer table {
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 13px;
+  }
+  .event .answer th,
+  .event .answer td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+  }
+  .event .answer th {
+    background: var(--panel-2);
+    color: var(--accent);
+    font-weight: 600;
   }
   .event .kv {
     display: flex; flex-wrap: wrap; gap: 14px;
@@ -559,12 +637,32 @@
         replaceLastSpinner(`Iteration ${event.iteration} · answering`);
         const input = event.input_tokens || 0;
         const output = event.output_tokens || 0;
-        // rough cost estimate (USD) — sonnet: $3/1M in, $15/1M out; haiku: $1/$5
-        // we don't know which one it was from the event, use sonnet-ish guess for research, haiku for campus
+        // Rough cost in rupees. Per-agent rates differ (haiku $1/$5 vs sonnet $3/$15
+        // per 1M tokens), we approximate with the higher (research) rate here; the
+        // campus agent's tiny token usage still reads as fractions-of-a-rupee anyway.
         const costUsd = (input * 3 + output * 15) / 1_000_000;
         const rupees = (costUsd * 85).toFixed(4);
+
+        // Render the answer as markdown. The model emits headings, lists, bold,
+        // code blocks, links — all of which come back as raw markdown text.
+        // marked.parse() converts it to HTML; we already styled the rendered
+        // elements inside .event .answer above.
+        let answerHtml;
+        try {
+          if (window.marked && typeof window.marked.parse === 'function') {
+            // gfm: tables, strikethrough, fenced code
+            // breaks: newlines → <br> (matches how users read terminal output)
+            answerHtml = window.marked.parse(event.answer || '', { gfm: true, breaks: false });
+          } else {
+            answerHtml = `<p>${esc(event.answer || '')}</p>`;
+          }
+        } catch (err) {
+          console.error('markdown parse failed', err);
+          answerHtml = `<p>${esc(event.answer || '')}</p>`;
+        }
+
         addEvent('final', 'Final answer', `
-          <div class="answer">${esc(event.answer)}</div>
+          <div class="answer">${answerHtml}</div>
           <div class="kv">
             <span>iterations: <span class="n">${event.iteration}</span></span>
             <span>elapsed: <span class="n">${((event.elapsed_ms || 0) / 1000).toFixed(2)}s</span></span>
