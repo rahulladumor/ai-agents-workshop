@@ -44,8 +44,14 @@ const MAX_ITERATIONS = 20;           // web research can take many tool calls
 // ---------------------------------------------------------------------------
 const tools = [
   // --- Anthropic-hosted tools (no handler needed on our side) ---
-  { type: 'web_search_20260209', name: 'web_search' },
-  { type: 'web_fetch_20260209',  name: 'web_fetch'  },
+  // allowed_callers=['direct'] disables "programmatic tool calling"
+  // (dynamic result-filtering via a code-execution step). Without this
+  // override, web_search/web_fetch require a model that supports
+  // programmatic calling — Sonnet/Opus do, Haiku does not. With 'direct',
+  // the tool just runs and returns results. Slightly less filtered
+  // output, works on every model.
+  { type: 'web_search_20260209', name: 'web_search', allowed_callers: ['direct'] },
+  { type: 'web_fetch_20260209',  name: 'web_fetch',  allowed_callers: ['direct'] },
 
   // --- Our custom tools ---
   {
