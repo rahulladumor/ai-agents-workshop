@@ -191,6 +191,100 @@ Not looking for polish — looking for effort. Broken code with a real attempt b
 
 ---
 
+---
+
+## 🔴 Research-agent extensions (real tools, higher stakes)
+
+These build on `agent-research.js`, which actually touches the internet and writes to disk. See [docs/05-research-agent.md](./docs/05-research-agent.md) for the full background on how it works.
+
+### R1 · arXiv search tool
+
+Replace `web_search` with a custom tool that hits the arXiv API directly. Better for academic queries — you get structured metadata (authors, abstract, dates, categories) instead of general web snippets.
+
+**Spec:**
+- Tool name: `searchArxiv(query, max_results=5)`
+- Returns: `[{id, title, authors, abstract, url, published_date}, ...]`
+- Use arXiv's free API at `http://export.arxiv.org/api/query`
+
+**What you'll learn:** building custom tools that wrap specific APIs, and how to structure tool output so the model can cite sources correctly.
+
+---
+
+### R2 · `sendEmail` with human approval
+
+Add a tool that drafts an email from research findings. Must require human approval before sending.
+
+**Spec:**
+- Tool name: `sendEmail(to, subject, body)`
+- Returns: `{ status: 'pending_approval', approval_url: 'http://localhost:3000/approve/<id>' }`
+- Add a `GET /approve/:id` endpoint that renders the draft + Approve/Reject buttons
+- Only send (via nodemailer or a service) if the user clicks Approve
+
+**What you'll learn:** human-in-the-loop patterns for destructive actions. This is the pattern every real agent touching external communication uses.
+
+---
+
+### R3 · Scheduled recurring research
+
+Turn the one-shot CLI into a daily research bot. Runs your agent at 8am every morning, researches 3 topics you care about, emails you the digest.
+
+**Spec:**
+- Use `node-cron` or system `cron`
+- Config file `research-schedule.json` with topics and times
+- Outputs to `./research/daily/<YYYY-MM-DD>/<topic>.md`
+
+**What you'll learn:** moving from interactive to autonomous. Cost-capping matters a lot more when a bot fires by itself at 3am.
+
+---
+
+### R4 · Research-agent UI in the browser
+
+The research agent currently runs in the browser UI already (we ship this). But take it further: add a "history" panel that shows previous queries, click-to-re-run, and a research notes browser that lets the user read/edit/delete saved `./research/*.md` files.
+
+**What you'll learn:** full-stack agent UX — users don't want to re-ask the same questions; they want continuity.
+
+---
+
+### R5 · Source citation validation
+
+Claude sometimes cites URLs that don't actually back the claim. Add a post-processing step that:
+
+1. Parses the final answer for `[title](url)` citations
+2. Runs `web_fetch` on each URL
+3. Uses a SECOND Claude call to check: "Does this page actually support the claim made in the citation?"
+4. Flags or removes unsupported citations before showing the final answer
+
+**What you'll learn:** hallucination detection via multi-model verification. The "Santa method" applied to source integrity.
+
+---
+
+### R6 · Cost cap per query
+
+Research queries can balloon — one bad prompt = 10 searches + 10 fetches + 50K tokens. Add a hard cap:
+
+- Track `totalInputTokens + totalOutputTokens` across the whole loop
+- Before each LLM call, check if the running total is within budget
+- If close to the cap, inject a system reminder: "You have X tokens left. Wrap up."
+- If over the cap, force `tool_choice: 'none'` and ask for the final answer
+
+**What you'll learn:** self-moderating agents using the API's own signals. This is what production cost management actually looks like.
+
+---
+
+### R7 · Multi-agent pattern
+
+Split the research agent into two: a **planner** (decides what to research) and a **worker** (does the searches + fetches for one topic). The planner calls the worker as a tool for each subtopic, aggregates the results.
+
+**Spec:**
+- Planner agent uses `sonnet-4-6`, gets the user's original goal, breaks it into 3–5 research subtopics
+- For each subtopic, planner invokes a `runSubagent(topic)` tool
+- That tool spins up a fresh research agent instance (with `--fast` / Haiku) focused only on that subtopic
+- Planner aggregates sub-answers into a final synthesis
+
+**What you'll learn:** the multi-agent orchestration pattern, sub-agent cost optimization (Haiku for workers, Sonnet for planner), and why single-agent is often the right answer anyway.
+
+---
+
 ## The spirit of the thing
 
 Pick one challenge. Finish it. Ship it. Write one paragraph about what you learned. That one finished thing is worth more than twelve half-started ideas.

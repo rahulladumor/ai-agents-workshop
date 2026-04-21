@@ -207,8 +207,10 @@ Written as teaching material — read them in order if you're new to agents, or 
 2. [**docs/02-the-loop.md**](./docs/02-the-loop.md) — the loop, step by step, with code
 3. [**docs/03-architecture.md**](./docs/03-architecture.md) — production architecture, end-to-end trace
 4. [**docs/04-production.md**](./docs/04-production.md) — how agents fail, how real teams defend
-5. [**exercises/**](./exercises/) — two paper exercises (trace a loop, design your own agent)
-6. [**CHALLENGES.md**](./CHALLENGES.md) — 12 extensions you can build on top of `agent.js`
+5. [**docs/05-research-agent.md**](./docs/05-research-agent.md) — the research agent: real tools, real network, real artifacts
+6. [**exercises/**](./exercises/) — two paper exercises (trace a loop, design your own agent)
+7. [**CHALLENGES.md**](./CHALLENGES.md) — extensions you can build on top of either agent
+8. [**SLIDE_PROMPTS.md**](./SLIDE_PROMPTS.md) — complete 16-slide workshop deck brief with content, speaker notes, and AI image prompts
 
 ---
 
