@@ -1,19 +1,17 @@
-# Building AI Agents — 2-Hour Workshop
+# Building AI Agents
 
-> A hands-on workshop for engineering students and faculty. We build a working AI agent in under 150 lines of Node.js, break it live, and understand why most agents fail in production.
+> A working AI agent in under 200 lines of Node.js — with a live browser visualizer that shows the loop executing in real time.
 
-**Presenter:** [Rahul Ladumor](https://rahulladumor.in) · Solo AWS + AI consultant
-**Audience:** Engineering students + faculty
-**Duration:** 2 hours
+Built as teaching material by [Rahul Ladumor](https://rahulladumor.in). Clone it, run it, read the code. No framework. No LangChain.
 
 ---
 
-## What you'll walk out with
+## What you'll understand after running this
 
-1. A clear answer to: **what IS an agent?** (and how it differs from a chatbot)
-2. The **one loop** that explains every agent ever built
-3. A **working 60–150 line agent** you watched me type — you have it in this repo
-4. **Five ways agents fail in production** — and how real teams defend
+1. What an AI agent actually is — and how it differs from a chatbot
+2. The one loop every agent ever built is running
+3. How tool calls, tool descriptions, and structured errors shape agent behaviour
+4. Five common ways agents fail in production — and how to defend
 
 ---
 
@@ -141,16 +139,18 @@ These all get called "agents" but aren't, under the definition above:
 - **Memory:** session-only (no persistent memory across requests)
 - **Max iterations:** 5 (the fuse)
 
-### For classroom showcase
+### The browser visualizer
 
-The browser UI at `http://localhost:3000` is designed to project on a big screen. Each event in the loop appears as a card students can read from the back row:
+The UI at `http://localhost:3000` renders every step of the loop as a card, in real time:
 
 1. **Goal received** — the user's question
 2. **Iteration N · LLM is deciding** — while Claude decides whether to call a tool
-3. **Iteration N · Tool call** — shows the exact input sent to the tool, and the structured result that came back
-4. **Final answer** — with iteration count, elapsed time, token usage, and estimated cost in rupees
+3. **Iteration N · Tool call** — the exact input sent to the tool, and the structured result that came back
+4. **Final answer** — iteration count, elapsed time, token usage, and estimated cost
 
-There's a **"Weaken tool description"** toggle at the top. Flip it on, ask the same question, and watch the model stop calling the tool — often inventing a number instead. Flip it back off, ask again, and watch it work. Thirty seconds, no code edit required. This is the single most effective teaching moment in the whole workshop.
+Good for projecting on a big screen (classroom, meetup), good for anyone who wants to see the loop without reading the code first.
+
+There's also a **"Weaken tool description"** toggle at the top. Flip it on, ask the same question, and the model stops calling the tool — often inventing a number instead. Flip it back off, ask again, it works. No code edit required. Shows hallucination happening in real time and makes the point that **tool descriptions are themselves a prompt**.
 
 Try these four queries to see different parts of the loop:
 
@@ -174,14 +174,16 @@ curl -sX POST http://localhost:3000/ask -H 'Content-Type: application/json' \
 
 ---
 
-## Going deeper (in recommended reading order)
+## Going deeper
+
+Written as teaching material — read them in order if you're new to agents, or jump to the one you need.
 
 1. [**docs/01-concepts.md**](./docs/01-concepts.md) — what an agent is, what it isn't, when it's the right tool
 2. [**docs/02-the-loop.md**](./docs/02-the-loop.md) — the loop, step by step, with code
 3. [**docs/03-architecture.md**](./docs/03-architecture.md) — production architecture, end-to-end trace
 4. [**docs/04-production.md**](./docs/04-production.md) — how agents fail, how real teams defend
-5. [**exercises/**](./exercises/) — two hands-on exercises
-6. [**CHALLENGES.md**](./CHALLENGES.md) — 10 ideas to extend the demo after the workshop
+5. [**exercises/**](./exercises/) — two paper exercises (trace a loop, design your own agent)
+6. [**CHALLENGES.md**](./CHALLENGES.md) — 12 extensions you can build on top of `agent.js`
 
 ---
 
