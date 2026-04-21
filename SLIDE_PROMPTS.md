@@ -3,10 +3,52 @@
 Everything you need to build a 16-slide deck for a 2-hour technical workshop with Masters students and faculty. For each slide you get:
 
 1. **Slide content** — exactly what goes on the slide
-2. **What to say** — speaker narrative, plain English
+2. **What to say** — speaker narrative, plain English (with demo callbacks / transitions)
 3. **AI image prompt** — for Ideogram, DALL-E 3, or similar tools that render text
 4. **Background-only prompt** — use this if your AI tool can't do text well, then overlay text in PowerPoint
 5. **Layout notes** — where things go on the slide
+
+---
+
+## 🎯 The narrative arc (one page, memorize this)
+
+```
+BEFORE DEMO (~55 min)              THE DEMO (~35 min)            AFTER DEMO (~30 min)
+────────────────────────           ──────────────────           ─────────────────────
+S1  Title — the hook               S12 Demo intro               S14 Failures + defenses
+S2  Who I am                       S13 Watch points                 (callback to break-the-agent)
+S3  Outcomes                           ↓                         S15 Your turn — exercise
+S4  Definition (anchor)            [LIVE CODE, 35 min,          S16 Close — mental model
+S5  What it's NOT                  visual UI, 4 test Qs,            + callback + goodbye
+S6  THE LOOP (whiteboard!)         break-the-agent moment]
+S7  Chatbot vs Agent
+S8  Use cases (seed research)
+S9  Right vs wrong tool
+S10 Inside the loop (6 steps)
+S11 Architecture (zoom to box)
+```
+
+**Key narrative promises kept:**
+
+- Slide 3 promises "watch it build live." Demo delivers.
+- Slide 6 (the loop) and Slide 10 (6 steps) preview exactly what the demo will show.
+- Slide 8 ("what agents do") seeds row 3, Research — paid off at demo end when you show the Research Agent tab.
+- Slide 13 (watch points) is a pre-flight for the demo. Slide 14 (failures) is the post-flight.
+- Slide 16 (close) calls back to the break-the-agent moment — the deepest lesson gets the final word.
+
+**Timing target per section:**
+
+| Block | Slides | Duration |
+|---|---|---|
+| Opening + framing | 1–3 | 8 min |
+| Foundations | 4–7 | 18 min |
+| Use cases + context | 8–9 | 10 min |
+| How it works | 10–11 | 14 min |
+| LIVE DEMO | 12–13 | 35 min |
+| Production reality | 14 | 12 min |
+| Exercise | 15 | 15 min |
+| Close + Q&A | 16 | 8 min |
+| **Total** | | **120 min** |
 
 ---
 
@@ -204,15 +246,16 @@ Body:        By the end of the next two hours, you should be able to:
              1. Explain what an agent is — without confusing it with a chatbot.
              2. Walk through the agent loop, step by step.
              3. Read a production agent architecture and spot weak points.
-             4. Build a working agent in ~150 lines of Node.js (we'll do this live).
+             4. Watch a working agent built live in ~150 lines of Node.js.
              5. Name 5 ways agents fail in production — and how real teams defend.
 
-Footnote:    If we don't hit any of these, interrupt me. I mean it.
+Footnote:    All code is on GitHub. Clone it, break it, extend it.
+             If we don't hit any of the above, interrupt me.
 ```
 
 ## What to say
 
-> *"Five things. If we don't hit any one of these, interrupt me. You paid for this with your time."*
+> *"Five things. By hour two, you should be able to do all five. The fourth one is where the workshop turns — about 50 minutes in, I'll stop talking, open my editor, and build an agent in front of you. That's the moment everything clicks. If we don't hit any one of these, interrupt me. I mean it."*
 
 ## AI image prompt (full slide with text)
 
@@ -351,6 +394,8 @@ Then ask the room:
 
 Take 2–3 answers. Judge each against the dividing line publicly. Usually hilarious.
 
+**Transition to next slide:** *"None of the things on this slide are what we're going to build today. We're going to build a real one — one that makes its own decisions. That starts with one picture."*
+
 ## AI image prompt (full slide with text)
 
 ```
@@ -427,11 +472,17 @@ Footnote:    Four parts: goal, LLM call, tool execution, observation.
 
 ## What to say
 
-Do NOT just point at the slide. Walk to the whiteboard. Draw it live. Takes 90 seconds.
+**This is the most important slide of the workshop.** Do NOT just point at it. Walk to the whiteboard and draw it live. Takes 90 seconds.
 
-> *"I'm going to draw this on the whiteboard. Watch."*
+> *"The slide is reference. Watch me build it instead."*
 
-Draw it. Then erase. Ask a student to come up and draw it from memory. They'll mess up. Correct gently. Everyone remembers it for a month. Drawings stick; slides don't.
+Draw: `Goal → LLM call → Tool? → yes → Execute → Observe → back to LLM → no → Return`. While you draw, say:
+
+> *"Four parts. Goal. LLM. Tools. The loop that connects them. When the LLM decides it doesn't need a tool, it answers and the loop exits. That's all. Every agent — Cursor, Claude Code, Intercom Fin, the one I'm about to build in front of you — is this shape, scaled up. Memory is a variation. Multi-agent is a variation. Planning is a variation. This is the primitive."*
+
+Then erase. Ask a student to come up and draw it from memory. They'll mess up. Correct gently. Everyone in the room remembers this for a month — drawings stick, slides don't.
+
+**Transition:** *"We'll come back to this picture six times today. Starting now — let me show you how it differs from what you already know: a chatbot."*
 
 ## AI image prompt (full slide with diagram)
 
@@ -579,6 +630,8 @@ Then ask the room:
 
 > *"Raise your hand if you've used Cursor, Claude Code, or Copilot. [most will]. You've already been an agent user — you just didn't know the pattern."*
 
+**Seed the closing reveal:** *"See row 3 — Research? We're going to build a tiny version of that at the end of this session, after we build the simpler one. Same loop. Real web search. Real fetch. Works today, on your laptop."*
+
 ## AI image prompt (full slide with table)
 
 ```
@@ -718,13 +771,17 @@ Footnote:    Total: 2 model calls · 1 tool run · ~2 seconds.
 
 ## What to say
 
-Walk through at ~60 seconds per step. Don't rush. The key line to plant:
+Walk through at ~60 seconds per step. Don't rush. These six lines are exactly what the agent we're about to build will execute in a few minutes — this is the demo script in miniature.
+
+The key line to plant after step 6:
 
 > *"The LLM decides. Your code acts. That separation is the whole thing."*
 
 Then scale up mentally:
 
-> *"Now imagine the task needed four tool calls instead of one. How many LLM calls total? [they'll answer: 5]. Right. And that's where cost and latency get interesting. We'll see this live in the demo in about 15 minutes."*
+> *"Now imagine the task needed four tool calls instead of one. How many LLM calls total? [they'll answer: 5]. Right. And that's where cost and latency get interesting."*
+
+**Transition to architecture:** *"You now know what one agent run looks like. But in production it doesn't run alone — it sits inside a system. One more slide and then we're in the editor."*
 
 ## AI image prompt (full slide with numbered steps)
 
@@ -804,6 +861,10 @@ Footnote:    Every box on this diagram exists because something failed in produc
 Walk left-to-right, one sentence per box. Key line to plant:
 
 > *"Every box on this diagram exists because something failed in production. None of it is theoretical. I've personally watched each one of these get added after an incident."*
+
+**Point at the Orchestrator box.** Say:
+
+> *"This box right here — the orchestrator — is the part we're about to build. The other boxes are for later. What we're going to type in the next 30 minutes is a minimal version of this one box. Enough to show you every part of the loop. Then I'll break it live, and we'll see exactly why each of the other boxes exists."*
 
 Close this slide with the transition:
 
@@ -927,7 +988,18 @@ Points:
 
 Show this for 30 seconds, then switch to editor.
 
-> *"Four things I'll call out as we build. Watch for them. You'll notice the tool description thing especially — that one changes how you think about agents forever."*
+> *"Four things I'll point to as we build. Each one will show up at a specific moment — I'll say 'watch this' when it happens. If you leave today remembering just #1, the tool description thing, the workshop was worth your time. That one changes how you think about agents forever."*
+
+**Keep these handy during the demo — call them out when they happen:**
+
+| Watch point | Demo moment |
+|---|---|
+| 1. Tool description = prompt | When writing the tool schema (Segment B) — point to the description field |
+| 2. Structured errors | When writing the tool handler (Segment C) — point to the `return { error: ... }` |
+| 3. The for-loop IS the agent | When writing runAgent's `for` loop (Segment D) |
+| 4. Two LLM calls per request | When Q1 runs (Segment F) — point to the `[iter 1]` / `[iter 2]` log lines |
+
+**Bonus callback in Segment G (break-the-agent):** remind them: *"Remember watch-point #1? Watch what happens when I weaken the description."* Pay it off.
 
 ## AI image prompt (full slide with text)
 
@@ -991,13 +1063,19 @@ Key line:    The LLM is the unreliable part.
 
 ## What to say
 
-Don't read the table. Pick ONE failure you've personally seen and tell a 45-second story. For example:
+**Open by referencing the break-the-agent moment from the demo:**
 
-> *"Cost explosion — a client of mine had an agent hit a loop between two tools that kept disagreeing. 4,000 iterations before their cost cap kicked in. $380 bill for one user session. Now every agent I build has MAX_ITERATIONS = 5. Every single one."*
+> *"You just saw failure #1 in the demo. When I weakened the tool description, the agent hallucinated a number. That wasn't a bug — that's the default behavior when the system around the model is weak. Now let me show you the other five failures real teams defend against every day."*
+
+Don't read the entire table. Walk through the 6 failures in 10 seconds each, max. Then pick ONE you've personally seen and tell a 45-second story. For example:
+
+> *"Cost explosion — a client of mine had an agent hit a loop between two tools that kept disagreeing. 4,000 iterations before their cost cap kicked in. $380 bill for one user session. Now every agent I build has MAX_ITERATIONS = 5. Every single one. You saw that same MAX_ITERATIONS in the code I just typed — that's why."*
 
 Then land the key line and **pause for 5 seconds:**
 
 > *"The LLM is the unreliable part. The system around it is what makes the agent reliable."*
+
+**The entire workshop is this one sentence.** Don't rush it.
 
 ## AI image prompt (full slide with table)
 
@@ -1069,9 +1147,20 @@ Reminder:    Not every problem needs an agent. If your idea can be solved with
 
 ## What to say
 
-> *"Ten minutes. Pair up with whoever's next to you. Pick something you see on this campus — course registration, mess menu complaints, anything. Design an agent for it. I'll walk around. At the end, two teams present, I critique publicly — not to embarrass anyone, because honest feedback is the only kind that actually teaches."*
+> *"Ten minutes. Pair up with whoever's next to you. Pick something you see on this campus. I'll walk around. At the end, two teams present, I critique publicly — not to embarrass anyone, because honest feedback is the only kind that actually teaches."*
 
-Then walk around. Listen. Help stuck pairs by asking: "What's the loop?" or "Where does the LLM get its information?"
+**Seed their thinking with 4 concrete examples:**
+
+- Course registration helper (tools: `listCoursesIOfferedThisSem`, `checkPrerequisites`, `registerCourse`)
+- Library book finder + reserver (tools: `searchLibrary`, `checkAvailability`, `reserveBook`)
+- Mess menu feedback bot (tools: `getTodayMenu`, `submitComplaint`, `escalateRepeatedComplaint`)
+- Internship finder (tools: `searchInternships`, `matchToProfile`, `saveToFavorites`)
+
+> *"Or — and this is also a correct answer — sometimes the honest conclusion is 'this doesn't need an agent. A simple form + SQL query solves it.' If that's what you land on, that's the right call. Say so in your presentation."*
+
+Then walk around. Listen. Help stuck pairs by asking: *"What's the loop?"* or *"Where does the LLM get its information?"*
+
+**When the 10 minutes are up, pick ONE strong design and ONE weaker one to present.** The critique of the weaker one is where the real learning happens — do it kindly, but name the specific problem (vague tool description, missing failure mode, agent when a cron would do).
 
 ## AI image prompt (full slide with text)
 
@@ -1146,9 +1235,27 @@ Footer:      Thank you.
 
 ## What to say
 
-Read the top block slowly. Let the room sit with it for 5 seconds of silence after the last line. Then the five takeaways in the same calm tone. End with:
+**This is the one slide you should rehearse most.** The whole workshop lands or doesn't land in the last 90 seconds.
 
-> *"Thank you. Stick around — the best conversations at these sessions happen after the slides stop."*
+Read the top block slowly, one line at a time, with real pauses between them:
+
+> *"An AI agent is a LOOP." [pause]*
+>
+> *"At each step, an LLM decides:"*
+> *"Call a tool — or answer the user." [pause]*
+>
+> *"The LLM is the unreliable part."*
+> *"The system around it is what makes it work." [5 seconds of silence]*
+
+Then the five takeaways in the same calm tone. Don't rush. Don't apologize. Don't fill the silence.
+
+**Callback to the break-the-agent moment** — this is the payoff:
+
+> *"Remember when I weakened one tool description and the agent hallucinated? That's the whole workshop in 30 seconds. The LLM's behavior changed because the system around it changed. You control that system. That's the power and the responsibility — every failure mode is your job, not the model's."*
+
+End with:
+
+> *"Thank you. The repo link is here — [point to the slide] — rahulladumor.in points to everything, the slides, the code, my contact. Stick around. The best conversations at these sessions happen after the slides stop."*
 
 ## AI image prompt (full slide with text)
 
