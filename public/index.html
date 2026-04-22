@@ -471,12 +471,13 @@
         <span class="dot"></span>
         <span>${label}</span>
       `;
-      lb.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'INPUT') {
-          const cb = lb.querySelector('input');
-          cb.checked = !cb.checked;
-        }
-        lb.classList.toggle('on', lb.querySelector('input').checked);
+      // Listen for 'change' on the checkbox — fires after the browser
+      // has toggled state (via native label click, direct click, keyboard).
+      // Do NOT manually toggle in a click handler; the <label>'s native
+      // behavior already does that, and double-toggling cancels out.
+      const cb = lb.querySelector('input');
+      cb.addEventListener('change', () => {
+        lb.classList.toggle('on', cb.checked);
       });
       toggles.appendChild(lb);
     });
